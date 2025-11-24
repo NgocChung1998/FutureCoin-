@@ -5,7 +5,21 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getReportData } from "@/lib/data";
 import { ENTRY_SCORE_RULES } from "@/lib/scoringRules";
 
-const CHAT_HISTORY_PATH = path.resolve(process.cwd(), "..", "logs", "chat-history.json");
+const resolveChatHistoryPath = () => {
+  const isVercel = Boolean(process.env.VERCEL);
+  if (isVercel) {
+    const tmpRoot = process.env.TMPDIR || "/tmp";
+    return path.join(tmpRoot, "futurecoin", "chat-history.json");
+  }
+
+  return path.resolve(process.cwd(), "..", "logs", "chat-history.json");
+};
+
+const ensureDirectoryExists = async (filePath: string) => {
+  const dir = path.dirname(filePath);
+  await fs.mkdir(dir, { recursive: true });
+};
+
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 const GEMINI_MODEL =
   process.env.GEMINI_MODEL?.trim() ||
@@ -30,8 +44,9 @@ type ChatHistory = {
 const MAX_HISTORY = 5;
 
 const readChatHistory = async (): Promise<ChatHistory> => {
+  const historyPath = resolveChatHistoryPath();
   try {
-    const file = await fs.readFile(CHAT_HISTORY_PATH, "utf-8");
+    const file = await fs.readFile(historyPath, "utf-8");
     return JSON.parse(file) as ChatHistory;
   } catch {
     return { messages: [] };
@@ -39,9 +54,9 @@ const readChatHistory = async (): Promise<ChatHistory> => {
 };
 
 const writeChatHistory = async (history: ChatHistory): Promise<void> => {
-  const dir = path.dirname(CHAT_HISTORY_PATH);
-  await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(CHAT_HISTORY_PATH, JSON.stringify(history, null, 2));
+  const historyPath = resolveChatHistoryPath();
+  await ensureDirectoryExists(historyPath);
+  await fs.writeFile(historyPath, JSON.stringify(history, null, 2));
 };
 
 export async function GET() {
