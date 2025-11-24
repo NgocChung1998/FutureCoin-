@@ -18,7 +18,7 @@ const API_URL = "https://first.fsignal.xyz/api/reports";
 const FALLBACK_DATA_PATH = path.resolve(process.cwd(), "data.json");
 const FETCH_TIMEOUT = 8000;
 
-marked.setOptions({ mangle: false, headerIds: false });
+// Use default marked options; IDs are disabled by stripping via cheerio later if needed.
 
 const SYMBOL_HEADERS = ["symbol", "mã", "coin", "ticker"];
 const ACTION_HEADERS = ["decision", "quyết", "action", "direction", "lệnh", "quyet", "quyết định", "lệnh chính"];
@@ -71,8 +71,8 @@ const fetchRemoteReports = async (): Promise<RawReport[]> => {
   try {
     const response = await fetch(API_URL, {
       headers: { accept: "application/json" },
-      cache: "no-store",
       signal: controller.signal,
+      next: { revalidate: 300 },
     });
 
     if (!response.ok) {
@@ -111,8 +111,8 @@ const loadRawReports = async (): Promise<RawReport[]> => {
 };
 
 const parseMarkdownSections = (reportId: string, markdown: string, sectionIndex: number): TableSection[] => {
-  const html = marked.parse(markdown);
-  const $ = loadHtml(html, { decodeEntities: true });
+  const html = marked.parse(markdown, { async: false }) as string;
+  const $ = loadHtml(html);
   const sections: TableSection[] = [];
 
   $("table").each((index, table) => {
